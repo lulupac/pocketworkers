@@ -103,4 +103,4 @@ For the moment it is not possible to mix threads and processes in a pipeline (I'
 
 ## Note
 
-Comments, critics, issues, fixes are welcome as long as it keeps this lib tiny, stupid and simple :-)
+Comments, critics, issues, fixes are welcome as long as it aims at keeping this lib tiny, stupid and simple :-)
