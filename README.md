@@ -1,5 +1,5 @@
 # quickworkers
-quickworkers is a tiny lib in Python 2.7 largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
+quickworkers is a tiny lib in Python 2.x largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
 
 Examples better speaks for themselves.
 
