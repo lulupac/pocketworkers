@@ -1,11 +1,11 @@
 # quickworkers
-quickworkers is a tiny lib in Python 2.7 built on top of the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). It extends its functionality by providing the same easy way to launch a pool of workers (threads or processes). It adds support for coroutine as the main worker function for greater flexibility and provides a simple way to chain pools of workers together into a data pipeline. 
+quickworkers is a tiny lib in Python 2.7 largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
 
 Examples better speaks for themselves.
 
 ## Examples
 
-1. Say, you just need to compute some values and get the resutls. You can launch a pool of 2 workers and feed it with data like this:
+Taking the example from [Bat-belt](https://github.com/sametmax/Bat-belt), if you need to compute some values and get the results, you can launch a pool of 2 workers and feed it with data like this:
 
 ```python
 from quickworkers import worker
@@ -26,7 +26,7 @@ for x in range(10):
 pool.stop()
 ```
 
-2. Now you need to offload some I\O tasks to your worker and need to pass it a file name to keep between successive calls. To do so, you can apply the `@worker` decorator to a coroutine as follows:
+Now if you need to offload some I\O tasks to your worker and need to pass it a file name to keep between successive calls, just apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
@@ -49,25 +49,18 @@ for x in range(10):
 thread.stop()
 ```
 
-3. And if you need to chain these tasks together, you can simply use the `Pipeline` class as follows:
+Finally, if you need to chain these tasks together, you can use the `Pipeline` class:
 
 ```python
 from quickworkers import worker, Pipeline
 
 @worker(method='thread', qty=2)
 def compute(arg):
-    arg = arg + 10
-    return arg
+    # same function as in example 1
 
 @worker(method='thread')
 def save_results(filename):
-    with open(filename, 'w') as f:
-        while True:
-            try:
-                result = yield
-                f.write(str(result)+'\n')
-            except GeneratorExit:
-                break
+    # same coroutine as in example 2
 
 pipeline = Pipeline()
 
@@ -106,4 +99,8 @@ with Pipeline() as p:
     p.put(10)
 ```
 
-Note that for the moment it is not possible to mix threads and processes in a pipeline.
+For the moment it is not possible to mix threads and processes in a pipeline (I'll have to investigate that).
+
+## Note
+
+Comments, critics, issues, fixes are welcome as long as it keeps this lib tiny, stupid and simple :-)
