@@ -1,10 +1,4 @@
-from quickworkers import worker, Pipeline
-
-
-@worker(method='thread', qty=2)
-def compute(arg):
-    arg = arg + 10
-    return arg
+from quickworkers import worker
 
 
 @worker(method='thread')
@@ -22,22 +16,15 @@ def test():
 
     mycoroutine = custom_compute(5)
 
-    with Pipeline() as p:
+    with mycoroutine.start(workers=2) as pool:
 
-        p.register(compute)
-        p.register(mycoroutine)
+        pool.map(range(10))
 
-        p.start()
-
-        p.map(range(10))
-
-        results = range(15, 25)
+        results = range(5, 15)
 
         for _ in list(results):
             # remove output from results list as it arrives
-            results.remove(p.get())
-
-        p.join()
+            results.remove(pool.get())
 
     assert not results
 

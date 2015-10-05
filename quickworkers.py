@@ -1,6 +1,3 @@
-import sys
-import threading
-import multiprocessing
 import Queue
 from functools import wraps
 import inspect
@@ -11,157 +8,150 @@ class _StopWorker():
     pass
 
 
-def _worker_main_loop(func, in_queue, out_queue, coroutine_args,
-                      block, timeout, flowException):
+class _Processor(object):
+        def __init__(self, in_q=None, out_q=None, pool=None, method=None):
+            self._in_q = in_q
+            self._out_q = out_q
+            self._pool = pool
+            self._method = method
 
-    if isinstance(func, basestring):
-        exec(func) in None  # Windows hack
+        def put(self, data):
+            self._in_q.put(data)
 
-    iscoroutine = inspect.isgeneratorfunction(func)
-    if iscoroutine:
-        coroutine = func(coroutine_args)
-        next(coroutine)
+        def map(self, iterable):
+            for data in iterable:
+                self._in_q.put(data)
 
-        def func(x): return coroutine.send(x)
+        def get(self, block=True, timeout=None):
+            output = self._out_q.get(block, timeout)
+            self._out_q.task_done()
+            if isinstance(output, Exception):
+                raise output
+            return output
+
+        def join(self):
+            self._in_q.join()
+            self._out_q.join()
+
+        def stop(self):
+            for worker in self._pool:
+                self._in_q.put(_StopWorker())
+            self.join()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.stop()
+
+
+def _worker_main_loop(func, in_q, out_q):
 
     while True:
         try:
-            data = in_queue.get(block, timeout)
+            data = in_q.get()
 
             if isinstance(data, _StopWorker):
-                if iscoroutine:
-                    coroutine.close()
-                in_queue.task_done()
+                if hasattr(func, 'close'):
+                    func.close()  # if func is a coroutine
                 break
 
             result = func(data)
             if result:
-                out_queue.put(result)
-            in_queue.task_done()
+                out_q.put(result)
 
-        except Queue.Empty:
-            pass
         except KeyboardInterrupt:
             break
         except:
             tb = '***TRACEBACK FROM WORKER***\n' + traceback.format_exc()
-            if flowException:
-                out_queue.put(Exception(tb))
-                in_queue.task_done()
-            else:
-                raise Exception(tb)
+            out_q.put(Exception(tb))
+        finally:
+            in_q.task_done()
 
 
-def worker(method='process', qty=1, block=True, timeout=None,
-           flowException=True):
+def worker(method='thread', qty=1):
 
-    def decorator(func):
+    def decorated(func):
+
+        if inspect.isgeneratorfunction(func):
+
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                coro = func(*args, **kwargs)
+                next(coro)
+                def f(x):
+                    return coro.send(x)
+                f.close = coro.close
+                return worker(method, qty)(f)
+
+            return wrapper
 
         if method == 'thread':
+            import threading
             Q = Queue.Queue
-            Manager = threading.Thread
-        else:
+            Spawn = threading.Thread
+        elif method == 'process':
+            import multiprocessing
             Q = multiprocessing.JoinableQueue
-            Manager = multiprocessing.Process
+            Spawn = multiprocessing.Process
+        else:
+            raise RuntimeError('Unknown worker spawning method. Choose between \
+                            \'thread\' or \'process\'.')
+
+        def start(workers=None, in_q=None, out_q=None):
+            nb_workers = workers or qty
+            in_queue = in_q or Q()
+            out_queue = out_q or Q()
+            pool = []
+            for i in range(nb_workers):
+                p = Spawn(target=_worker_main_loop,
+                          args=(func, in_queue, out_queue))
+                pool.append(p)
+                pool[i].start()
+            processor = _Processor(in_queue, out_queue, pool, method)
+            return processor
 
         @wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
-
-        wrapper.method = method
-
-        # hack for using multiprocessing module on Windows:
-        if method == 'process' and sys.platform == 'win32':
-            lines = inspect.getsourcelines(func)[0][1:]
-            # slice to remove @worker decorator line
-            lines[0] = lines[0].replace(func.__name__, 'func')
-            function = ''.join(lines)
-        else:
-            function = func
-
-        def start(coroutine_args=None, in_queue=None, out_queue=None):
-            if not in_queue:
-                in_queue = Q()
-            if not out_queue:
-                out_queue = Q()
-            pool = []
-            for i in range(qty):
-                p = Manager(target=_worker_main_loop,
-                            args=(function, in_queue, out_queue, coroutine_args,
-                                  block, timeout, flowException))
-                pool.append(p)
-                pool[i].start()
-            wrapper.pool = pool
-            wrapper.in_queue = in_queue
-            wrapper.out_queue = out_queue
-            return wrapper
         wrapper.start = start
-
-        def get(block=block, timeout=timeout):
-            res = wrapper.out_queue.get(block, timeout)
-            wrapper.out_queue.task_done()
-            if isinstance(res, Exception):
-                raise res
-            return res
-        wrapper.get = get
-
-        wrapper.put = lambda x: wrapper.in_queue.put(x, block, timeout)
-
-        def join():
-            wrapper.in_queue.join()
-            wrapper.out_queue.join()
-        wrapper.join = join
-
-        def stop():
-            for worker in wrapper.pool:
-                wrapper.in_queue.put(_StopWorker(), block, timeout)
-            wrapper.join()
-        wrapper.stop = stop
 
         return wrapper
 
-    return decorator
+    return decorated
 
 
-class Pipeline(object):
+class Pipeline(_Processor):
     def __init__(self):
-        self._pools = []
-        self._first_queue = None
-        self._last_queue = None
+        super(Pipeline, self).__init__()
+        self._register = []
+        self._processors = []
 
-    def register(self, pool, coroutine_args=None):
-        if self._pools and pool.method != self._pools[-1][0].method:
-            raise Exception('a Pipeline cannot mix Threads and Processes (yet)')
-        self._pools.append((pool, coroutine_args))
+    def register(self, worker_function):
+        self._register.append(worker_function)
 
     def start(self):
-        in_queue = None
-        for pool, coroutine_args in self._pools:
-            pool.start(coroutine_args, in_queue, None)
-            in_queue = pool.out_queue
-        self._first_queue = self._pools[0][0].in_queue
-        self._last_queue = self._pools[-1][0].out_queue
+        spawn_method = set()
+        in_q = None
+        for worker_function in self._register:
+            print worker_function.__dict__
+            processor = worker_function.start(in_q=in_q)
+            self._processors.append(processor)
+            in_q = processor._out_q
+            spawn_method.add(processor._method)
 
-    def put(self, data):
-        self._first_queue.put(data)
+        if len(spawn_method) > 1:
+            raise Exception('a Pipeline cannot mix Threads and Processes (yet)')
 
-    def get(self, block=True, timeout=None):
-        output = self._last_queue.get(block, timeout)
-        self._last_queue.task_done()
-        if isinstance(output, Exception):
-            raise output
-        return output
+        self._in_q = self._processors[0]._in_q
+        self._out_q = self._processors[-1]._out_q
 
+    # override join method of parent _Processor class
     def join(self):
-        for pool, _ in self._pools:
-            pool.join()
+        for p in self._processors:
+            p.join()
 
+    # override stop method of parent _Processor class
     def stop(self):
-        for pool, _ in self._pools:
-            pool.stop()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop()
+        for p in self._processors:
+            p.stop()
