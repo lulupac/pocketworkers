@@ -20,18 +20,13 @@ def save_results(filename):
 
 if __name__ == '__main__':
 
+    io_coroutine = save_results('results.txt')
+
     pipeline = Pipeline()
 
     pipeline.register(compute)
-    pipeline.register(save_results, coroutine_args='results.txt')
+    pipeline.register(io_coroutine)
 
-    pipeline.start()
-
-    for x in range(10):
-        pipeline.put(x)
-
-    pipeline.join()
-
-    pipeline.put('completed')  # raises an Exception written in result file
-
-    pipeline.stop()
+    with pipeline.start() as p:
+        p.map(range(10))
+        p.put('COMPLETED')  # raises an exception which will be flowed in pipeline

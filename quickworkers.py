@@ -31,7 +31,7 @@ class _Processor(object):
 
         def join(self):
             self._in_q.join()
-            self._out_q.join()
+            #self._out_q.join() -> not sure if good practice to join out_q
 
         def stop(self):
             for worker in self._pool:
@@ -69,7 +69,7 @@ def _worker_main_loop(func, in_q, out_q):
             in_q.task_done()
 
 
-def worker(method='thread', qty=1):
+def worker(method='process', qty=1):
 
     def decorated(func):
 
@@ -134,7 +134,6 @@ class Pipeline(_Processor):
         spawn_method = set()
         in_q = None
         for worker_function in self._register:
-            print worker_function.__dict__
             processor = worker_function.start(in_q=in_q)
             self._processors.append(processor)
             in_q = processor._out_q
@@ -145,6 +144,8 @@ class Pipeline(_Processor):
 
         self._in_q = self._processors[0]._in_q
         self._out_q = self._processors[-1]._out_q
+
+        return self
 
     # override join method of parent _Processor class
     def join(self):
