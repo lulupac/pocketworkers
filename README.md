@@ -39,7 +39,7 @@ with compute.start() as p:
         print p.get()
 ```
 
-Now if you need to offload some I\O tasks to your worker and need to pass it a file name at execution titime to keep between successive calls, just apply the `@worker` decorator to a coroutine:
+Now if you need to offload some I\O tasks to your worker and need to pass it a file name at execution time to keep between successive calls, just apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
@@ -73,12 +73,11 @@ def compute(arg):
 def save_results(filename):
     # same coroutine as in example 2
 
-io_coroutine = save_results('file.txt')
     
 pipeline = Pipeline()
 
 pipeline.register(compute)
-pipeline.register(io_coroutine)
+pipeline.register(save_results('file.txt'))
 
 with pipeline.start() as p:
 

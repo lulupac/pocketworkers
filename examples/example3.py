@@ -18,12 +18,10 @@ def save_results(filename):
                 break
 
 
-io_coroutine = save_results('results.txt')
-
 pipeline = Pipeline()
 
 pipeline.register(compute)
-pipeline.register(io_coroutine)
+pipeline.register(save_results('file.txt'))
 
 with pipeline.start() as p:
 
