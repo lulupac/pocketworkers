@@ -6,14 +6,10 @@ def compute(arg):
     arg = arg + 10
     return arg
 
-if __name__ == '__main__':
 
-    pool = compute.start()
+with compute.start() as pool:
 
-    for x in range(10):
-        pool.put(x)
+    pool.map(range(10))
 
     for _ in range(10):
         print pool.get()
-
-    pool.stop()

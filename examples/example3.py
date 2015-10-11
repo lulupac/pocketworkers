@@ -18,15 +18,19 @@ def save_results(filename):
                 break
 
 
-if __name__ == '__main__':
+io_coroutine = save_results('results.txt')
 
-    io_coroutine = save_results('results.txt')
+pipeline = Pipeline()
 
-    pipeline = Pipeline()
+pipeline.register(compute)
+pipeline.register(io_coroutine)
 
-    pipeline.register(compute)
-    pipeline.register(io_coroutine)
+with pipeline.start() as p:
 
-    with pipeline.start() as p:
-        p.map(range(10))
-        p.put('COMPLETED')  # raises an exception which will be flowed in pipeline
+    p.map(range(10))
+
+    # wait for first set of data to be processed
+    p.join()
+
+    # add more data
+    p.put(10)

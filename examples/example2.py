@@ -1,27 +1,17 @@
 from quickworkers import worker
 
 
-@worker()
-def compute(a):
-    result = None
-    while True:
-        try:
-            data = yield result
-            result = data + a
-        except GeneratorExit:
-            break
+@worker(method='thread')
+def save_results(filename):
+    with open(filename, 'w') as f:
+        while True:
+            try:
+                result = yield
+                f.write(str(result)+'\n')
+            except GeneratorExit:
+                break
 
-if __name__ == '__main__':
 
-    data = range(10)
+with save_results('file.txt').start(workers=2) as pool:
 
-    mycoroutine = compute(5)
-
-    with mycoroutine.start(workers=2) as pool:
-
-        pool.map(data)
-
-        pool.join()
-
-        for _ in data:
-            print pool.get()
+    pool.map(range(10))

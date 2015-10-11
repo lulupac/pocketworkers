@@ -20,13 +20,26 @@ pool = compute.start()
 for x in range(10):
     pool.put(x)
 
-for x in range(10):
+for _ in range(10):
     print pool.get()
 
 pool.stop()
 ```
+By default, it uses the `multiprocessing` module to launch processes.
 
-Now if you need to offload some I\O tasks to your worker and need to pass it a file name to keep between successive calls, just apply the `@worker` decorator to a coroutine:
+You can also use a context manager and `map` method for a little bit less hassle:
+
+```python
+...
+with compute.start() as p:
+
+    p.map(range(10))
+
+    for _ in range(10):
+        print p.get()
+```
+
+Now if you need to offload some I\O tasks to your worker and need to pass it a file name at execution titime to keep between successive calls, just apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
@@ -41,12 +54,10 @@ def save_results(filename):
             except GeneratorExit:
                 break
 
-thread = save_results.start('file.txt')
 
-for x in range(10):
-    thread.put(x)
+with save_results('file.txt').start(workers=2) as p:
 
-thread.stop()
+    p.map(range(10))
 ```
 
 Finally, if you need to chain these tasks together, you can use the `Pipeline` class:
@@ -62,40 +73,21 @@ def compute(arg):
 def save_results(filename):
     # same coroutine as in example 2
 
+io_coroutine = save_results('file.txt')
+    
 pipeline = Pipeline()
 
 pipeline.register(compute)
-pipeline.register(save_results, coroutine_args='results.txt')
+pipeline.register(io_coroutine)
 
-pipeline.start()
+with pipeline.start() as p:
 
-for x in range(10):
-    pipeline.put(x)
+    p.map(range(10))
 
-# wait for first set of data to be processed    
-pipeline.join()
-
-# add more data
-pipeline.put(10)
-
-pipeline.stop()
-```
-
-`Pipeline` can also be used in a context manager for a little bit less hassle:
-```python
-...
-with Pipeline() as p:
-
-    p.register(compute)
-    p.register(save_results, coroutine_args='results.txt')
-
-    p.start()
-
-    for x in range(10):
-        p.put(x)
-
+    # wait for first set of data to be processed    
     p.join()
 
+    # add more data
     p.put(10)
 ```
 
