@@ -1,13 +1,13 @@
 from quickworkers import worker, Pipeline
 
 
-@worker(method='thread', qty=2)
+@worker
 def compute(arg):
     arg = arg + 10
     return arg
 
 
-@worker(method='thread')
+@worker
 def save_results(filename):
     with open(filename, 'w') as f:
         while True:
@@ -20,11 +20,10 @@ def save_results(filename):
 
 pipeline = Pipeline()
 
-pipeline.register(compute)
-pipeline.register(save_results('file.txt'))
+pipeline.register(compute, workers=2)
+pipeline.register(save_results('file.txt'), workers=2)
 
-with pipeline.start() as p:
-
+with pipeline.start(spawn='thread') as p:
     p.map(range(10))
 
     # wait for first set of data to be processed

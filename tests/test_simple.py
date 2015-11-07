@@ -1,7 +1,7 @@
 from quickworkers import worker
 
 
-@worker(method='process', qty=2)
+@worker
 def compute(arg):
     arg = arg + 10
     return arg
@@ -9,7 +9,7 @@ def compute(arg):
 
 def test():
 
-    with compute.start() as pool:
+    with compute.start(spawn='process', workers=2) as pool:
 
         pool.map(range(10))
 

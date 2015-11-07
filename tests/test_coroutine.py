@@ -1,7 +1,7 @@
 from quickworkers import worker
 
 
-@worker(method='thread')
+@worker
 def custom_compute(a):
     result = None
     while True:
@@ -16,7 +16,7 @@ def test():
 
     mycoroutine = custom_compute(5)
 
-    with mycoroutine.start(workers=2) as pool:
+    with mycoroutine.start(spawn='thread', workers=3) as pool:
 
         pool.map(range(10))
 

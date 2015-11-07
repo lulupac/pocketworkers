@@ -2,6 +2,7 @@ import Queue
 from functools import wraps
 import inspect
 import traceback
+import time
 
 
 class _StopWorker():
@@ -9,11 +10,10 @@ class _StopWorker():
 
 
 class _Processor(object):
-        def __init__(self, in_q=None, out_q=None, pool=None, method=None):
+        def __init__(self, pool=None, in_q=None, out_q=None):
             self._in_q = in_q
             self._out_q = out_q
             self._pool = pool
-            self._method = method
 
         def put(self, data):
             self._in_q.put(data)
@@ -36,6 +36,8 @@ class _Processor(object):
         def stop(self):
             for worker in self._pool:
                 self._in_q.put(_StopWorker())
+            #time.sleep(1)
+            #print self._in_q.qsize(), self._out_q.qsize()
             self.join()
 
         def __enter__(self):
@@ -63,62 +65,58 @@ def _worker_main_loop(func, in_q, out_q):
         except KeyboardInterrupt:
             break
         except:
-            tb = '***TRACEBACK FROM WORKER***\n' + traceback.format_exc()
+            tb = '***EXCEPTION IN WORKER***\n' + traceback.format_exc()
             out_q.put(Exception(tb))
         finally:
             in_q.task_done()
 
 
-def worker(method='process', qty=1):
+def worker(func):
 
-    def decorated(func):
+    if inspect.isgeneratorfunction(func):
 
-        if inspect.isgeneratorfunction(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            coro = func(*args, **kwargs)
+            next(coro)
+            def f(x):
+                return coro.send(x)
+            f.close = coro.close
+            return worker(f)
 
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                coro = func(*args, **kwargs)
-                next(coro)
-                def f(x):
-                    return coro.send(x)
-                f.close = coro.close
-                return worker(method, qty)(f)
+        return wrapper
 
-            return wrapper
 
-        if method == 'thread':
+    def start(spawn='thread', workers=1, in_q=None, out_q=None):
+
+        if spawn == 'thread':
             import threading
             Q = Queue.Queue
             Spawn = threading.Thread
-        elif method == 'process':
+        elif spawn == 'process':
             import multiprocessing
             Q = multiprocessing.JoinableQueue
             Spawn = multiprocessing.Process
         else:
             raise RuntimeError('Unknown worker spawning method. Choose between \
                             \'thread\' or \'process\'.')
+        in_queue = in_q or Q()
+        out_queue = out_q or Q()
+        pool = []
+        for i in range(workers):
+            p = Spawn(target=_worker_main_loop,
+                        args=(func, in_queue, out_queue))
+            pool.append(p)
+            pool[i].start()
+        processor = _Processor(pool, in_queue, out_queue)
+        return processor
 
-        def start(workers=None, in_q=None, out_q=None):
-            nb_workers = workers or qty
-            in_queue = in_q or Q()
-            out_queue = out_q or Q()
-            pool = []
-            for i in range(nb_workers):
-                p = Spawn(target=_worker_main_loop,
-                          args=(func, in_queue, out_queue))
-                pool.append(p)
-                pool[i].start()
-            processor = _Processor(in_queue, out_queue, pool, method)
-            return processor
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    wrapper.start = start
 
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-        wrapper.start = start
-
-        return wrapper
-
-    return decorated
+    return wrapper
 
 
 class Pipeline(_Processor):
@@ -127,20 +125,15 @@ class Pipeline(_Processor):
         self._register = []
         self._processors = []
 
-    def register(self, worker_function):
-        self._register.append(worker_function)
+    def register(self, worker_function, workers=1):
+        self._register.append((worker_function, workers))
 
-    def start(self):
-        spawn_method = set()
+    def start(self, spawn='thread'):
         in_q = None
-        for worker_function in self._register:
-            processor = worker_function.start(in_q=in_q)
+        for worker_function, workers in self._register:
+            processor = worker_function.start(spawn, workers, in_q)
             self._processors.append(processor)
             in_q = processor._out_q
-            spawn_method.add(processor._method)
-
-        if len(spawn_method) > 1:
-            raise Exception('a Pipeline cannot mix Threads and Processes (yet)')
 
         self._in_q = self._processors[0]._in_q
         self._out_q = self._processors[-1]._out_q

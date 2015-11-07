@@ -1,15 +1,17 @@
 from quickworkers import worker
 
 
-@worker(qty=2)
+@worker
 def compute(arg):
     arg = arg + 10
     return arg
 
 
-with compute.start() as pool:
+pool = compute.start(spawn='process', workers=2)
 
-    pool.map(range(10))
+pool.map(range(10))
 
-    for _ in range(10):
-        print pool.get()
+for _ in range(10):
+    print pool.get()
+
+pool.stop()

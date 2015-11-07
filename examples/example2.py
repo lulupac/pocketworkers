@@ -1,7 +1,7 @@
 from quickworkers import worker
 
 
-@worker(method='thread')
+@worker
 def save_results(filename):
     with open(filename, 'w') as f:
         while True:
@@ -13,5 +13,4 @@ def save_results(filename):
 
 
 with save_results('file.txt').start(workers=2) as pool:
-
     pool.map(range(10))

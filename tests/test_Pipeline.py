@@ -1,13 +1,13 @@
 from quickworkers import worker, Pipeline
 
 
-@worker(method='thread', qty=2)
+@worker
 def compute(arg):
     arg = arg + 10
     return arg
 
 
-@worker(method='thread')
+@worker
 def custom_compute(a):
     result = None
     while True:
@@ -20,14 +20,12 @@ def custom_compute(a):
 
 def test():
 
-    mycoroutine = custom_compute(5)
-
     with Pipeline() as p:
 
         p.register(compute)
-        p.register(mycoroutine)
+        p.register(custom_compute(5), workers=2)
 
-        p.start()
+        p.start(spawn='thread')
 
         p.map(range(10))
 
