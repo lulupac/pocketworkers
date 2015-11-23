@@ -10,28 +10,28 @@ Taking the example from [Bat-belt](https://github.com/sametmax/Bat-belt), if you
 ```python
 from quickworkers import worker
 
-@worker(qty=2)
+@worker
 def compute(arg):
     arg = arg + 10
     return arg
 
-pool = compute.start()
+pool = compute.start(spawn='process', workers=2)
 
-for x in range(10):
-    pool.put(x)
+for data in range(10):
+    pool.put(data)
 
 for _ in range(10):
     print pool.get()
 
 pool.stop()
 ```
-By default, it uses the `multiprocessing` module to launch processes.
+By default, it uses the `threading` module to spawn workers.
 
 You can also use a context manager and `map` method for a little bit less hassle:
 
 ```python
 ...
-with compute.start() as p:
+with compute.start(spawn='process', workers=2) as p:
 
     p.map(range(10))
 
@@ -39,44 +39,46 @@ with compute.start() as p:
         print p.get()
 ```
 
-Now if you need to offload some I\O tasks to your worker and need to pass it a file name at execution time to keep between successive calls, just apply the `@worker` decorator to a coroutine:
+Now if you need to offload some I\O tasks to a worker and need to pass it a file name at execution time to keep between successive calls, you can apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
 
-@worker(method='thread')
+@worker
 def save_results(filename):
     with open(filename, 'w') as f:
         while True:
             try:
                 result = yield
-                f.write(str(result)+'\n')
             except GeneratorExit:
                 break
+            f.write(str(result)+'\n')
 
 
-with save_results('file.txt').start(workers=2) as p:
+with save_results('file.txt').start() as p:
 
     p.map(range(10))
 ```
+
+By defaults, it starts one worker.
 
 Finally, if you need to chain these tasks together, you can use the `Pipeline` class:
 
 ```python
 from quickworkers import worker, Pipeline
 
-@worker(method='thread', qty=2)
+@worker
 def compute(arg):
     # same function as in example 1
 
-@worker(method='thread')
+@worker
 def save_results(filename):
     # same coroutine as in example 2
 
     
 pipeline = Pipeline()
 
-pipeline.register(compute)
+pipeline.register(compute, workers=2)
 pipeline.register(save_results('file.txt'))
 
 with pipeline.start() as p:
@@ -90,8 +92,5 @@ with pipeline.start() as p:
     p.put(10)
 ```
 
-For the moment it is not possible to mix threads and processes in a pipeline (I'll have to investigate that).
-
 ## Note
-
 Comments, critics, issues, fixes are welcome as long as it aims at keeping this lib tiny, stupid and simple :-)
