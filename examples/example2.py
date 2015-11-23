@@ -12,5 +12,10 @@ def save_results(filename):
                 break
 
 
-with save_results('file.txt').start(workers=2) as pool:
-    pool.map(range(10))
+def example():
+    with save_results('file.txt').start(workers=2) as pool:
+        pool.map(range(10))
+
+
+if __name__ == '__main__':
+    example()

@@ -1,9 +1,8 @@
 import sys
 import Queue
-from functools import wraps, partial
+from functools import wraps
 import inspect
 import traceback
-import logging
 
 
 class _StopWorker():
@@ -80,7 +79,7 @@ def worker(func):
     if inspect.isgeneratorfunction(func):
 
         if sys.platform == 'win32':
-            raise NotImplemented('Only idempotent functions are supported on Windows')
+            raise Exception('Only idempotent functions are supported on Windows')
 
         @wraps(func)
         def wrapper(*args, **kwargs):
