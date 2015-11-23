@@ -1,8 +1,9 @@
+import sys
 import Queue
-from functools import wraps
+from functools import wraps, partial
 import inspect
 import traceback
-import time
+import logging
 
 
 class _StopWorker():
@@ -20,7 +21,7 @@ class _Processor(object):
 
         def map(self, iterable):
             for data in iterable:
-                self._in_q.put(data)
+                self.put(data)
 
         def get(self, block=True, timeout=None):
             output = self._out_q.get(block, timeout)
@@ -31,14 +32,13 @@ class _Processor(object):
 
         def join(self):
             self._in_q.join()
-            #self._out_q.join() -> not sure if good practice to join out_q
 
         def stop(self):
             for worker in self._pool:
-                self._in_q.put(_StopWorker())
-            #time.sleep(1)
-            #print self._in_q.qsize(), self._out_q.qsize()
-            self.join()
+                self.put(_StopWorker())
+
+            for worker in self._pool:
+                worker.join()
 
         def __enter__(self):
             return self
@@ -48,6 +48,9 @@ class _Processor(object):
 
 
 def _worker_main_loop(func, in_q, out_q):
+
+    if isinstance(func, basestring):
+        exec(func) in None  # Windows hack
 
     while True:
         try:
@@ -67,6 +70,7 @@ def _worker_main_loop(func, in_q, out_q):
         except:
             tb = '***EXCEPTION IN WORKER***\n' + traceback.format_exc()
             out_q.put(Exception(tb))
+            # raise Exception(tb) # debug
         finally:
             in_q.task_done()
 
@@ -74,6 +78,9 @@ def _worker_main_loop(func, in_q, out_q):
 def worker(func):
 
     if inspect.isgeneratorfunction(func):
+
+        if sys.platform == 'win32':
+            raise NotImplemented('Only idempotent functions are supported on Windows')
 
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -100,12 +107,26 @@ def worker(func):
         else:
             raise RuntimeError('Unknown worker spawning method. Choose between \
                             \'thread\' or \'process\'.')
+
+        # hack for using multiprocessing module on Windows:
+        # on Windows target function and args need to be picklable. As func is
+        # not defined at module top level, it is not. Hence function source
+        # code is passed as a string.
+        # ONLY WORKS FOR IDEMPOTENT FUNCTIONS, NOT COROUTINE
+        if spawn == 'process' and sys.platform == 'win32':
+            lines = inspect.getsourcelines(func)[0][1:]
+            # slice to remove @worker decorator line
+            lines[0] = lines[0].replace(func.__name__, 'func')
+            function = ''.join(lines)
+        else:
+            function = func
+
         in_queue = in_q or Q()
         out_queue = out_q or Q()
         pool = []
         for i in range(workers):
             p = Spawn(target=_worker_main_loop,
-                        args=(func, in_queue, out_queue))
+                        args=(function, in_queue, out_queue))
             pool.append(p)
             pool[i].start()
         processor = _Processor(pool, in_queue, out_queue)

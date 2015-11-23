@@ -6,22 +6,21 @@ def compute(arg):
     arg = arg + 10
     return arg
 
-
 @worker
 def save_results(filename):
     with open(filename, 'w') as f:
         while True:
             try:
                 result = yield
-                f.write(str(result)+'\n')
             except GeneratorExit:
                 break
+            f.write(str(result)+'\n')
 
 
 pipeline = Pipeline()
 
 pipeline.register(compute, workers=2)
-pipeline.register(save_results('file.txt'), workers=2)
+pipeline.register(save_results('file.txt'), workers=1)
 
 with pipeline.start(spawn='thread') as p:
     p.map(range(10))
