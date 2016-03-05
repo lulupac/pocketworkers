@@ -25,7 +25,7 @@ for _ in range(10):
 
 pool.stop()
 ```
-By default, it uses the `threading` module to spawn workers.
+By default, it uses the `threading` module to spawn workers. Here, the `multiprocessing` module is used.
 
 You can also use a context manager and `map` method for a little bit less hassle:
 
@@ -91,3 +91,5 @@ with pipeline.start() as p:
     # add more data
     p.put(10)
 ```
+
+Yes, I am pretty sure this is completely out-dated by some new cool features in Python 3.x, but this was quick (and dirty) and fun to do...
