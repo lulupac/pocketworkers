@@ -39,7 +39,7 @@ with compute.start(spawn='process', workers=2) as p:
         print p.get()
 ```
 
-If you need to offload some I\O tasks to a worker and need to pass it a file name at execution time to keep between successive calls, you can apply the `@worker` decorator to a coroutine:
+If you need to offload, say, some I\O tasks to a worker and need to pass it a file name at execution time to keep between successive calls, you can apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
