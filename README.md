@@ -1,5 +1,5 @@
 # quickworkers
-quickworkers is a tiny lib in Python 2.x largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
+quickworkers is a quick-and-dirty nanolib in Python 2.x largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
 
 Examples better speaks for themselves.
 
@@ -39,7 +39,7 @@ with compute.start(spawn='process', workers=2) as p:
         print p.get()
 ```
 
-Now if you need to offload some I\O tasks to a worker and need to pass it a file name at execution time to keep between successive calls, you can apply the `@worker` decorator to a coroutine:
+If you need to offload some I\O tasks to a worker and need to pass it a file name at execution time to keep between successive calls, you can apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
@@ -62,7 +62,7 @@ with save_results('file.txt').start() as p:
 
 By defaults, it starts one worker.
 
-Finally, if you need to chain these tasks together, you can use the `Pipeline` class:
+Finally, if you need to chain these tasks together, you can use the `Pipeline` class like this:
 
 ```python
 from quickworkers import worker, Pipeline
@@ -91,6 +91,3 @@ with pipeline.start() as p:
     # add more data
     p.put(10)
 ```
-
-## Note
-Comments, critics, issues, fixes are welcome as long as it aims at keeping this lib tiny, stupid and simple :-)
