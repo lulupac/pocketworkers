@@ -1,5 +1,6 @@
 # quickworkers
-quickworkers is a quick-and-dirty nanolib in Python 2.x largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
+quickworkers is a nano task queue for local tasks processing in Python 2.x. It is largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). 
+While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
 
 Examples better speaks for themselves.
 
@@ -25,21 +26,20 @@ for _ in range(10):
 
 pool.stop()
 ```
-By default, it uses the `threading` module to spawn workers. Here, the `multiprocessing` module is used.
+By default, it uses the `threading` module to spawn workers. In above example, the `multiprocessing` module is used.
 
 You can also use a context manager and `map` method for a little bit less hassle:
 
 ```python
 ...
 with compute.start(spawn='process', workers=2) as p:
-
     p.map(range(10))
 
     for _ in range(10):
         print p.get()
 ```
 
-If you need to offload, say, some I\O tasks to a worker and need to pass it a file name at execution time to keep between successive calls, you can apply the `@worker` decorator to a coroutine:
+If you need to pass some state at execution time and keep this state between successive calls to the task function (for instance, you want to to offload I\Os to a worker and need to pass it a file name), you can apply the `@worker` decorator to a coroutine:
 
 ```python
 from quickworkers import worker
@@ -69,11 +69,11 @@ from quickworkers import worker, Pipeline
 
 @worker
 def compute(arg):
-    # same function as in example 1
+    # function from example 1
 
 @worker
 def save_results(filename):
-    # same coroutine as in example 2
+    # coroutine from example 2
 
     
 pipeline = Pipeline()
