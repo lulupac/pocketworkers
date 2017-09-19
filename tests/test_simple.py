@@ -1,4 +1,4 @@
-from quickworkers import worker
+from pocketworkers import worker
 
 
 @worker
@@ -13,7 +13,7 @@ def test():
 
         pool.map(range(10))
 
-        results = range(10, 20)
+        results = list(range(10, 20))
 
         # remove output from results list as it arrives
         for _ in range(10):

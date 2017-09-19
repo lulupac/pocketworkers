@@ -1,4 +1,4 @@
-from quickworkers import worker, Pipeline
+from pocketworkers import worker, Pipeline
 
 
 @worker
@@ -29,9 +29,9 @@ def test():
 
         p.map(range(10))
 
-        results = range(15, 25)
+        results = list(range(15, 25))
 
-        for _ in list(results):
+        for _ in range(10):
             # remove output from results list as it arrives
             results.remove(p.get())
 

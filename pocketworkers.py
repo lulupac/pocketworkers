@@ -1,5 +1,6 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
+
 import sys
-import Queue
 from functools import wraps
 import inspect
 import traceback
@@ -48,7 +49,7 @@ class _Processor(object):
 
 def _worker_main_loop(func, in_q, out_q):
 
-    if isinstance(func, basestring):
+    if isinstance(func, str):
         exec(func) in None  # Windows hack
 
     while True:
@@ -79,7 +80,7 @@ def worker(func):
     if inspect.isgeneratorfunction(func):
 
         if sys.platform == 'win32':
-            raise Exception('Only idempotent functions are supported on Windows')
+            raise Exception('Generater function are not supported on Windows')
 
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -97,7 +98,10 @@ def worker(func):
 
         if spawn == 'thread':
             import threading
-            Q = Queue.Queue
+            if sys. version_info[0] == 3:
+                from queue import Queue as Q
+            else:
+                from Queue import Queue as Q
             Spawn = threading.Thread
         elif spawn == 'process':
             import multiprocessing
@@ -111,7 +115,7 @@ def worker(func):
         # on Windows target function and args need to be picklable. As func is
         # not defined at module top level, it is not. Hence function source
         # code is passed as a string.
-        # ONLY WORKS FOR IDEMPOTENT FUNCTIONS, NOT COROUTINE
+        # ONLY WORKS FOR PURE FUNCTIONS, NOT COROUTINES
         if spawn == 'process' and sys.platform == 'win32':
             lines = inspect.getsourcelines(func)[0][1:]
             # slice to remove @worker decorator line

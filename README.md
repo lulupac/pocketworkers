@@ -1,5 +1,5 @@
-# quickworkers
-quickworkers is a nano task queue for local tasks processing in Python 2.x. It is largely inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). 
+# pocketworkers
+pocketworkers is a tiny task queue for local tasks processing in Python 2. It is inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). 
 
 While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
 
@@ -10,7 +10,7 @@ Examples better speaks for themselves.
 Taking the example from [Bat-belt](https://github.com/sametmax/Bat-belt), if you need to compute some values and get the results, you can launch a pool of 2 workers and feed it with data like this:
 
 ```python
-from quickworkers import worker
+from pocketworkers import worker
 
 @worker
 def compute(arg):
@@ -43,7 +43,7 @@ with compute.start(spawn='process', workers=2) as p:
 If you need to pass some state at execution time and keep this state between successive calls to the task function (for instance, you want to to offload I\Os to a worker and need to pass it a file name), you can apply the `@worker` decorator to a coroutine:
 
 ```python
-from quickworkers import worker
+from pocketworkers import worker
 
 @worker
 def save_results(filename):
@@ -66,7 +66,7 @@ By defaults, it starts one worker.
 Finally, if you need to chain these tasks together, you can use the `Pipeline` class like this:
 
 ```python
-from quickworkers import worker, Pipeline
+from pocketworkers import worker, Pipeline
 
 @worker
 def compute(arg):
@@ -93,4 +93,4 @@ with pipeline.start() as p:
     p.put(10)
 ```
 
-Yes, I am pretty sure this is completely out-dated by some new cool features in Python 3.x, but this was quick (and dirty) and fun to do...
+You probably won't go very far with this, but it was quick (and dirty) and fun to do...

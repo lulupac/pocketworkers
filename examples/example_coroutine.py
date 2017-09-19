@@ -1,4 +1,4 @@
-from quickworkers import worker
+from pocketworkers import worker
 
 
 @worker
