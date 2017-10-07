@@ -1,5 +1,5 @@
 # pocketworkers
-pocketworkers is a tiny task queue for local tasks processing in Python 2. It is inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). 
+pocketworkers is a tiny task queue for local tasks processing. It is inspired by the "Poor man task queue" code in [Bat-belt](https://github.com/sametmax/Bat-belt). 
 
 While keeping its simplicity of use, it adds a few extra  functionalities such as the ability to launch a pool of workers and support for coroutine as the worker function. It also provides a simple way to chain pools of workers together into a data pipeline. 
 
